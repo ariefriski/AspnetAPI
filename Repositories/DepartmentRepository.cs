@@ -7,7 +7,7 @@ namespace WebAPI.Repositories
 {
     public class DepartmentRepository:IRepository<Department,int>
     {
-        MyContext _context;
+        private readonly MyContext _context;
 
         public DepartmentRepository(MyContext context)
         {
