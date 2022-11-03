@@ -244,9 +244,12 @@ namespace WebAPI.Controllers
                     {
                         StatusCode = 200,
                         Message = "Login berhasil!",
-                        Data = data.employee.Fullname,
-                        data.employee.Email,
-                        data.role.Name
+                        Data = new
+                        {
+                            data.employee.Fullname,
+                            data.employee.Email,
+                            data.role.Name
+                        }
                     });
                 }
             }
