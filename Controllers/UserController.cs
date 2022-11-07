@@ -1,5 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using WebAPI.Model;
 using WebAPI.Repositories;
 
@@ -10,12 +14,16 @@ namespace WebAPI.Controllers
     public class UserController : ControllerBase
     {
         private readonly UserRepository userRepository;
-
-        public UserController(UserRepository userRepository)
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<UserController> _logger;
+        public UserController(UserRepository userRepository,IConfiguration configuration, ILogger<UserController> logger)
         {
             this.userRepository = userRepository;
+            _configuration = configuration;
+            _logger = logger;   
         }
 
+        [Authorize]
         [HttpGet]
         public ActionResult Get()
         {
@@ -49,7 +57,7 @@ namespace WebAPI.Controllers
                 });
             }
         }
-
+        
         [HttpGet("{id}")]
         public ActionResult GetById(int id)
         {
@@ -223,14 +231,14 @@ namespace WebAPI.Controllers
             }
         }
 
-
+        [AllowAnonymous]
         [HttpPost("Login")]
         public ActionResult Login(string email, string password)
         {
-            var data = userRepository.Login(email, password);
+            var data = userRepository.Login(email,password);
             try
             {
-                if (data == null)
+                if (data == 0)
                 {
                     return Ok(new
                     {
@@ -240,18 +248,24 @@ namespace WebAPI.Controllers
                 }
                 else
                 {
+                    string token = CreateToken(email);
                     return Ok(new
                     {
-                        StatusCode = 200,
-                        Message = "Login berhasil!",
-                        Data = new
-                        {
-                            data.employee.Fullname,
-                            data.employee.Email,
-                            data.role.Name
-                        }
+                        Message = "Login Berhasil",
+                        Data = data,token
                     });
                 }
+                //new
+                //{
+                //    StatusCode = 200,
+                //    Message = "Login berhasil!",
+                //    Data = new
+                //    {
+                //        data.employee.Fullname,
+                //        data.employee.Email,
+                //        data.role.Name
+                //    }
+                //}
             }
             catch (Exception ex)
             {
@@ -261,6 +275,31 @@ namespace WebAPI.Controllers
                     Message = ex.Message
                 });
             }
+        }
+
+        private string CreateToken(string email)
+        {
+            List<Claim> claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Email,email)
+                
+            };
+
+            var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(_configuration.GetSection("Jwt:Key").Value));
+
+            var cred = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                 _configuration["Jwt:Issuer"],
+                 _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.Now.AddDays(1),
+                signingCredentials: cred
+                );
+
+            var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+
+            return jwt;
         }
 
         [HttpPut("ChangePassword")]

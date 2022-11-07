@@ -89,19 +89,19 @@ namespace WebAPI.Repositories
             return 1;
         }
 
-        public User Login(string email, string Password)
+        public int Login (string email, string password)
         {
             var data = _context.Users.Include(x => x.employee).Include(x => x.role)
-               .SingleOrDefault(x => x.employee.Email == email && x.Password == Password );
-            return data;
-            //if (data != null)
-            //{
-            //    var vp = Hashing.ValidatePassword(Password, data.Password);
-            //    if (vp == true)
-            //        return int;
-            //}
-            
-            //return null;
+               .SingleOrDefault(x => x.employee.Email == email );
+
+            if (data != null)
+            {
+                var vp = Hashing.ValidatePassword(password, data.Password);
+                if (vp == true)
+                    return 1;
+            }
+
+            return 0;
         }
 
         public int ChangePassword(string OldPassword, string password, string email)
