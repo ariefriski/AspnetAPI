@@ -4,54 +4,56 @@ using WebAPI.Context;
 using WebAPI.Handler;
 using WebAPI.Model;
 using WebAPI.Repositories.Interface;
+using WebAPI.ViewModel;
 
-namespace WebAPI.Repositories
+namespace WebAPI.Repositories.Data
 {
-    public class UserRepository : IRepository<User, int>
+    public class UserRepository : GeneralRepository<User>
     {
         private readonly MyContext _context;
 
-        public UserRepository(MyContext _context)
+        
+        public UserRepository(MyContext _context):base(_context)
         {
             this._context = _context;
         }
-        public int Create(User entity)
-        {
-             _context.Users.Add(entity);
-            var data = _context.SaveChanges();
-            return data;
-        }
+        //public int Create(User entity)
+        //{
+        //    _context.Users.Add(entity);
+        //    var data = _context.SaveChanges();
+        //    return data;
+        //}
 
-        public int Delete(int id)
-        {
-            var data = _context.Users.Find(id);
-            if(data != null)
-            {
-                _context.Users.Remove(data);
-                var result = _context.SaveChanges();
-                return result;
-            }
-            return 0;
-        }
+        //public int Delete(int id)
+        //{
+        //    var data = _context.Users.Find(id);
+        //    if (data != null)
+        //    {
+        //        _context.Users.Remove(data);
+        //        var result = _context.SaveChanges();
+        //        return result;
+        //    }
+        //    return 0;
+        //}
 
-        public ICollection<User> Get()
-        {
-            return _context.Users.ToList();
-        }
+        //public ICollection<User> Get()
+        //{
+        //    return _context.Users.ToList();
+        //}
 
-        public User GetById(int id)
-        {
-            return _context.Users.Find(id);
-        }
+        //public User GetById(int id)
+        //{
+        //    return _context.Users.Find(id);
+        //}
 
-        public int Update(User entity)
-        {
-            _context.Entry(entity).State = EntityState.Modified;
-            var data = _context.SaveChanges();
-            return data;
-        }
+        //public int Update(User entity)
+        //{
+        //    _context.Entry(entity).State = EntityState.Modified;
+        //    var data = _context.SaveChanges();
+        //    return data;
+        //}
 
-   
+
         public int Register(string fullname, string email, string birthdate, string password)
         {
 
@@ -89,19 +91,28 @@ namespace WebAPI.Repositories
             return 1;
         }
 
-        public int Login (string email, string password)
+        //Bisa pake viewModel
+        public LoginResponse Login(string email, string password)
         {
             var data = _context.Users.Include(x => x.employee).Include(x => x.role)
-               .SingleOrDefault(x => x.employee.Email == email );
-
-            if (data != null)
+               .FirstOrDefault(x => x.employee.Email == email);
+            var vp = Hashing.ValidatePassword(password, data.Password);
+            if (data != null && vp == true)
             {
-                var vp = Hashing.ValidatePassword(password, data.Password);
-                if (vp == true)
-                    return 1;
+                //List<string> list = new List<string>();
+                //list.Add(data.employee.Email);
+                //list.Add(data.role.Name);
+                //return list;
+                LoginResponse loginResponse = new LoginResponse()
+                {
+                    FullName = data.employee.Fullname,
+                    Role = data.role.Name,
+                    Email = data.employee.Email
+                };
+                return loginResponse;
             }
 
-            return 0;
+            return null;
         }
 
         public int ChangePassword(string OldPassword, string password, string email)

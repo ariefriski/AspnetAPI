@@ -4,7 +4,7 @@
     {
 
         public ICollection<Entity> Get();
-        public Entity GetById(Key id);
+        public Entity Get(Key id);
 
         public int Create(Entity entity);
 

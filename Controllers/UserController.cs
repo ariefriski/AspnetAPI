@@ -4,198 +4,30 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using WebAPI.Base;
 using WebAPI.Model;
-using WebAPI.Repositories;
+using WebAPI.Repositories.Data;
 
 namespace WebAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class UserController : ControllerBase
+    [Authorize(Roles ="Staff,Programmer")]
+    public class UserController : BaseController<UserRepository,User>
     {
         private readonly UserRepository userRepository;
         private readonly IConfiguration _configuration;
         private readonly ILogger<UserController> _logger;
-        public UserController(UserRepository userRepository,IConfiguration configuration, ILogger<UserController> logger)
+        public UserController(UserRepository userRepository,IConfiguration configuration, ILogger<UserController> logger):base(userRepository)
         {
             this.userRepository = userRepository;
             _configuration = configuration;
             _logger = logger;   
         }
 
-        [Authorize]
-        [HttpGet]
-        public ActionResult Get()
-        {
-            var data = userRepository.Get();
-            try
-            {
-                if(data == null)
-                {
-                    return Ok(new
-                    {
-                        StatusCode = 200,
-                        Message = "Data tidak ada "
-                    });
-                }
-                else
-                {
-                    return Ok(new
-                    {
-                        StatusCode = 200,
-                        Message = "Data berhasil di Get",
-                        Data = data
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    StatusCode = 400,
-                    Message = ex.Message
-                });
-            }
-        }
         
-        [HttpGet("{id}")]
-        public ActionResult GetById(int id)
-        {
-            var data = userRepository.GetById(id);
-            try
-            {
-                if (data == null)
-                {
-                    return Ok(new
-                    {
-                        StatusCode = 200,
-                        Message = "Data tidak ada "
-                    });
-                }
-                else
-                {
-                    return Ok(new
-                    {
-                        StatusCode = 200,
-                        Message = "Data berhasil di Get",
-                        Data = data
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    StatusCode = 400,
-                    Message = ex.Message
-                });
-            }
-        }
 
-        [HttpPost]
-        public ActionResult Create(User user)
-        {
-            var data = userRepository.Create(user);
-            try
-            {
-                if (data == null)
-                {
-                    return Ok(new
-                    {
-                        StatusCode = 200,
-                        Message = "Data Gagal dibuat"
-                    });
-                }
-                else
-                {
-                    return Ok(new
-                    {
-                        StatusCode = 200,
-                        Message = "Data Berhasil dibuat",
-                        Data = data
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    StatusCode = 400,
-                    Message = ex.Message
-                });
-            }
-        }
-
-        [HttpPut]
-        public ActionResult Update(User user)
-        {
-            var data = userRepository.Update(user);
-            try
-            {
-                if (data == null)
-                {
-                    return Ok(new
-                    {
-                        StatusCode = 200,
-                        Message = "Data Gagal di Update"
-                    });
-                }
-                else
-                {
-                    return Ok(new
-                    {
-                        StatusCode = 200,
-                        Message = "Data Berhasil diUpdate",
-                        Data = data
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    StatusCode = 400,
-                    Message = ex.Message
-                });
-            }
-        }
-
-        [HttpDelete]
-        public ActionResult Delete(int id)
-        {
-            var data = userRepository.Delete(id);
-            try
-            {
-                if (data == null)
-                {
-                    return Ok(new
-                    {
-                        StatusCode = 200,
-                        Message = "Data Gagal Dihapus"
-                    });
-                }
-                else
-                {
-                    return Ok(new
-                    {
-                        StatusCode = 200,
-                        Message = "Data Berhasil Dihapus",
-                        Data = data
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    StatusCode = 400,
-                    Message = ex.Message
-                });
-            }
-        }
-
-
- 
+        [AllowAnonymous]
         [HttpPost("Register")]
         public ActionResult Register(string fullname, string email, string birthdate, string password)
         {
@@ -208,15 +40,15 @@ namespace WebAPI.Controllers
                     return Ok(new
                     {
                         StatusCode = 200,
-                        Message = "Email sudah ada !"
+                        Message = "Error Email Sudah Terdaftar!"
                     });
                 }
                 else
                 {
+                   // string token = CreateToken(email);
                     return Ok(new
                     {
-                        StatusCode = 200,
-                        Message = "Berhasil",
+                        Message = "Register Berhasil",
                         Data = data
                     });
                 }
@@ -238,7 +70,7 @@ namespace WebAPI.Controllers
             var data = userRepository.Login(email,password);
             try
             {
-                if (data == 0)
+                if (data == null)
                 {
                     return Ok(new
                     {
@@ -248,12 +80,24 @@ namespace WebAPI.Controllers
                 }
                 else
                 {
-                    string token = CreateToken(email);
-                    return Ok(new
+                    var claims = new[]
                     {
-                        Message = "Login Berhasil",
-                        Data = data,token
-                    });
+                        new Claim("Fullname",data.FullName),
+                        new Claim("role",data.Role)
+                    };
+
+                    var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(_configuration.GetSection("Jwt:Key").Value));
+
+                    var cred = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+                    var token = new JwtSecurityToken(
+                         _configuration["Jwt:Issuer"],
+                         _configuration["Jwt:Audience"],
+                        claims: claims,
+                        expires: DateTime.Now.AddDays(1),
+                        signingCredentials: cred
+                        );
+                    return Ok(new JwtSecurityTokenHandler().WriteToken(token));
                 }
                 //new
                 //{
@@ -277,31 +121,33 @@ namespace WebAPI.Controllers
             }
         }
 
-        private string CreateToken(string email)
-        {
-            List<Claim> claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Email,email)
-                
-            };
+        //private string CreateToken(string email)
+        //{
+            
+        //    List<Claim> claims = new List<Claim>
+        //    {
+        //        new Claim(ClaimTypes.Email,email),
 
-            var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(_configuration.GetSection("Jwt:Key").Value));
+        //    };
 
-            var cred = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        //    var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(_configuration.GetSection("Jwt:Key").Value));
 
-            var token = new JwtSecurityToken(
-                 _configuration["Jwt:Issuer"],
-                 _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddDays(1),
-                signingCredentials: cred
-                );
+        //    var cred = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+        //    var token = new JwtSecurityToken(
+        //         _configuration["Jwt:Issuer"],
+        //         _configuration["Jwt:Audience"],
+        //        claims: claims,
+        //        expires: DateTime.Now.AddDays(1),
+        //        signingCredentials: cred
+        //        );
 
-            return jwt;
-        }
+        //    var jwt = new JwtSecurityTokenHandler().WriteToken(token);
 
+        //    return jwt;
+        //}
+
+        [Authorize]
         [HttpPut("ChangePassword")]
         public ActionResult ChangePassword(string OldPassword, string password, string email)
         {
@@ -331,7 +177,7 @@ namespace WebAPI.Controllers
             }
         }
 
-
+        [Authorize]
         [HttpPut("ResetPassword")]
         public ActionResult ResetPassword(string fullName, string email, string birthDate, string newPassword)
         {

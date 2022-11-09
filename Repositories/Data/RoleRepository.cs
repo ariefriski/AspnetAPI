@@ -3,9 +3,9 @@ using WebAPI.Context;
 using WebAPI.Model;
 using WebAPI.Repositories.Interface;
 
-namespace WebAPI.Repositories
+namespace WebAPI.Repositories.Data
 {
-    public class RoleRepository : IRepository<Role, int>
+    public class RoleRepository : IRepository<Role,int>
     {
         private readonly MyContext _context;
         public RoleRepository(MyContext context)
@@ -23,7 +23,7 @@ namespace WebAPI.Repositories
         public int Delete(int id)
         {
             var data = _context.Roles.Find(id);
-            if(data != null)
+            if (data != null)
             {
                 _context.Remove(data);
                 var result = _context.SaveChanges();
@@ -38,10 +38,12 @@ namespace WebAPI.Repositories
             return _context.Roles.ToList();
         }
 
-        public Role GetById(int id)
+        public Role Get(int id)
         {
             return _context.Roles.Find(id);
         }
+
+        
 
         public int Update(Role entity)
         {
